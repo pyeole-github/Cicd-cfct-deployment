@@ -1,0 +1,300 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Dynamic Resource Allocation with EC2, Lambda, and CloudWatch. Including VPC, Private Subnet, Security Groups, and Centralized Account Integration.'
+
+Parameters:
+  EC2InstanceType:
+    Description: 'Type of EC2 instance to launch'
+    Type: String
+    Default: 't3.micro'
+
+  AllocationThreshold:
+    Description: 'Cost threshold in USD to trigger dynamic resource allocation'
+    Type: Number
+    Default: 1000
+
+  CentralAccountId:
+    Description: 'The AWS Account ID of the centralized account used for cost monitoring and resource management.'
+    Type: String
+    AllowedPattern: '^[0-9]{12}$'
+    ConstraintDescription: 'The Central Account ID must be a 12-digit number.'
+
+Resources:
+  # Create a new VPC
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: 'Name'
+          Value: 'DynamicResourceAllocationVPC'
+
+  # Create an Internet Gateway
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: 'Name'
+          Value: 'DynamicResourceAllocationIGW'
+
+  # Attach Internet Gateway to VPC
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Create a public subnet within the VPC
+  PublicSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: '10.0.1.0/24'
+      VpcId: !Ref VPC
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: 'Name'
+          Value: 'PublicSubnet'
+
+  # Create a private subnet within the VPC
+  PrivateSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      CidrBlock: '10.0.2.0/24'
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: 'Name'
+          Value: 'PrivateSubnet'
+
+  # Create a Route Table for the public subnet
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: 'Name'
+          Value: 'PublicRouteTable'
+
+  # Create a Route for the public route table to direct traffic to the Internet Gateway
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  # Associate the public route table with the public subnet
+  PublicSubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # Security Group for EC2 instance
+  EC2SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Security group for EC2 instance'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22  # SSH access
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80  # HTTP access
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: 'Name'
+          Value: 'EC2SecurityGroup'
+
+  # Create a role that allows the central account to assume it for management
+  CrossAccountRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'CrossAccountManagementRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref CentralAccountId
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'CrossAccountEC2ManagementPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:StartInstances'
+                  - 'ec2:StopInstances'
+                Resource: '*'
+        - PolicyName: 'CrossAccountCostAccessPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ce:GetCostAndUsage'
+                  - 'ce:GetCostForecast'
+                Resource: '*'
+
+  # EC2 Instance
+  EC2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: !Ref EC2InstanceType
+      ImageId: 'ami-08d8ac128e0a1b91c'  # Amazon Linux 2 AMI ID (Update as needed)
+      SubnetId: !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      Tags:
+        - Key: 'Name'
+          Value: 'CostMonitoredEC2Instance'
+
+  # IAM Role for Lambda to manage EC2 instances
+   # IAM Role for Lambda to manage EC2 instances and network interfaces
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'EC2ManagementPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:StartInstances'
+                  - 'ec2:StopInstances'
+                  - 'ce:GetCostAndUsage'
+                Resource: '*'
+        - PolicyName: "CrossAccountAssumeRole"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "sts:AssumeRole"
+                Resource: "arn:aws:iam::593793039129:role/CostExplorerAccessRole"
+        - PolicyName: 'VPCNetworkInterfacePolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:DeleteNetworkInterface'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DescribeSecurityGroups'
+                  - 'ec2:DescribeSubnets'
+                  - 'ec2:DescribeVpcs'
+                Resource: '*'
+      # Attach the AWSLambdaVPCAccessExecutionRole managed policy for VPC access
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  # Lambda function for managing EC2 instances based on cost
+  DynamicResourceAllocator:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: 'DynamicResourceAllocator'
+      Handler: 'index.lambda_handler'
+      Runtime: 'python3.8'
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          
+          def lambda_handler(event, context):
+              ec2 = boto3.client('ec2')
+              ce = boto3.client('ce')
+
+              # Query Cost Explorer for total cost
+              response = ce.get_cost_and_usage(
+                  TimePeriod={
+                      'Start': '2024-01-01',
+                      'End': '2024-10-02'
+                  },
+                  Granularity='MONTHLY',
+                  Metrics=['BlendedCost']
+              )
+              
+              total_cost = float(response['ResultsByTime'][0]['Total']['BlendedCost']['Amount'])
+
+              # If total cost exceeds the threshold, stop EC2 instances
+              if total_cost > float(event['ALLOCATION_THRESHOLD']):
+                  ec2_instances = ec2.describe_instances(
+                      Filters=[{'Name': 'tag:Name', 'Values': ['CostMonitoredEC2Instance']}]
+                  )
+                  for reservation in ec2_instances['Reservations']:
+                      for instance in reservation['Instances']:
+                          ec2.stop_instances(InstanceIds=[instance['InstanceId']])
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps(f'Total cost: ${total_cost}')
+              }
+      Environment:
+        Variables:
+          ALLOCATION_THRESHOLD: !Ref AllocationThreshold
+
+  # CloudWatch Event Rule to trigger Lambda periodically
+  CloudWatchEventRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      ScheduleExpression: 'rate(1 hour)'
+      Targets:
+        - Arn: !GetAtt DynamicResourceAllocator.Arn
+          Id: 'DynamicResourceAllocatorTarget'
+
+  PermissionForEventsToInvokeLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !Ref DynamicResourceAllocator
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt CloudWatchEventRule.Arn
+
+Outputs:
+  VPCId:
+    Description: 'VPC ID'
+    Value: !Ref VPC
+
+  PublicSubnetId:
+    Description: 'Public Subnet ID'
+    Value: !Ref PublicSubnet
+
+  PrivateSubnetId:
+    Description: 'Private Subnet ID'
+    Value: !Ref PrivateSubnet
+
+  EC2InstanceId:
+    Description: 'EC2 Instance ID'
+    Value: !Ref EC2Instance
+
+  LambdaFunctionArn:
+    Description: 'Lambda Function ARN'
+    Value: !GetAtt DynamicResourceAllocator.Arn
+
+  CrossAccountRoleArn:
+    Description: 'IAM Role ARN for centralized account'
+    Value: !GetAtt CrossAccountRole.Arn
+  
+  LambdaExecutionRoleArn:
+    Description: "The ARN of the Lambda execution role"
+    Value: !GetAtt LambdaExecutionRole.Arn
+
