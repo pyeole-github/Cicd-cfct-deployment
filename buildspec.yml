@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.8
+  pre_build:
+    commands:
+      - echo "Starting the build process..."
+  build:
+    commands:
+      - echo "Uploading templates to S3 bucket..."
+      - aws s3 cp manifest.yaml s3://cfct-deployment-customcontroltowerpipelineartifact-steemy6eboeq/manifests/ --region us-east-1
+      - aws s3 cp dynamic-resource-allocation.yaml s3://cfct-deployment-customcontroltowerpipelineartifact-steemy6eboeq/templates/ --region us-east-1
+      - aws s3 cp vpc-subnet-creation.yaml s3://cfct-deployment-customcontroltowerpipelineartifact-steemy6eboeq/templates/ --region us-east-1
+  post_build:
+    commands:
+      - echo "Build completed and files successfully uploaded to S3!"
