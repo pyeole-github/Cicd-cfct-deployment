@@ -4,15 +4,30 @@ phases:
   install:
     runtime-versions:
       python: 3.8 # Specify the runtime if needed (or omit if not necessary)
+      ruby: 2.7
     commands:
       - echo Installing necessary packages...
       - apt-get install -y zip # Install zip utility if not already installed
+      - echo "Installing cfn-nag..."
+      - gem install cfn-nag
 
   pre_build:
     commands:
       - echo Pre-build stage...
       - echo Checking if S3 bucket is accessible
       - aws s3 ls s3://custom-control-tower-configuration-593793039129-us-west-2
+      - echo "Running cfn-nag scan..."
+      # Run cfn-nag to scan all YAML/JSON templates in the repository
+      - cfn_nag_scan --input-path ./ > cfn-nag-results.txt
+      # Check if cfn-nag found any failures
+      - |
+        if grep -q 'Failures' cfn-nag-results.txt; then
+          echo "cfn-nag detected failures, failing the build..."
+          cat cfn-nag-results.txt
+          exit 1
+        else
+          echo "No cfn-nag violations found, proceeding to the build phase..."
+        fi
 
   build:
     commands:
@@ -24,6 +39,7 @@ phases:
     commands:
       - echo Build completed. Uploading to S3...
       - aws s3 cp custom-control-tower-configuration.zip s3://custom-control-tower-configuration-593793039129-us-west-2/ # Replace with your S3 bucket name and path
+      - echo "Upload completed."
 
 artifacts:
   files:
