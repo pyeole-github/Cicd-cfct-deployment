@@ -3,16 +3,29 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.8
+      python: 3.8 # Specify the runtime if needed (or omit if not necessary)
+    commands:
+      - echo Installing necessary packages...
+      - yum install -y zip # Install zip utility if not already available
+
   pre_build:
     commands:
-      - echo "Starting the build process..."
+      - echo Pre-build stage...
+      - echo Checking if S3 bucket is accessible
+      - aws s3 ls s3://custom-control-tower-configuration-593793039129-us-west-2
+
   build:
     commands:
-      - echo "Uploading templates to S3 bucket..."
-      - aws s3 cp manifest.yaml s3://cfct-deployment-customcontroltowerpipelineartifact-steemy6eboeq/manifests/ --region us-east-1
-      - aws s3 cp dynamic-resource-allocation.yaml s3://cfct-deployment-customcontroltowerpipelineartifact-steemy6eboeq/templates/ --region us-east-1
-      - aws s3 cp vpc-subnet-creation.yaml s3://cfct-deployment-customcontroltowerpipelineartifact-steemy6eboeq/templates/ --region us-east-1
+      - echo Starting build process...
+      - echo Creating zip file from the repository folder
+      - zip -r custom-control-tower-configuration.zip custom-control-tower-configuration/ # Replace 'folder-to-zip' with your folder's name
+
   post_build:
     commands:
-      - echo "Build completed and files successfully uploaded to S3!"
+      - echo Build completed. Uploading to S3...
+      - aws s3 cp custom-control-tower-configuration.zip s3://custom-control-tower-configuration-593793039129-us-west-2/ # Replace with your S3 bucket name and path
+
+artifacts:
+  files:
+    - custom-control-tower-configuration.zip
+  discard-paths: yes
