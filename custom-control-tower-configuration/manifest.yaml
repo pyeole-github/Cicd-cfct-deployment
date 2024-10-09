@@ -5,19 +5,19 @@ version: 2021-03-15
 
 # Control Tower Custom Resources (Service Control Policies or CloudFormation)
 resources: 
-    # - name: create-network-stack-dev
-    #   description: create vpc stack
-    #   resource_file: example-configuration/dynamic-resource-allocation.yaml
-    #   deploy_method: stack_set
-    #   parameters:
-    #     - parameter_key: "AllocationThreshold"
-    #       parameter_value: 1.00
-    #     - parameter_key: "CentralAccountId"
-    #       parameter_value: 593793039129
-    #   #Apply to the following OU(s)
-    #   deployment_targets:
-    #     accounts: # array of strings, [0-9]{12}
-    #       - pyeole-smeiacdev
+    - name: create-network-stack-dev
+      description: create vpc stack
+      resource_file: example-configuration/dynamic-resource-allocation.yaml
+      deploy_method: stack_set
+      parameters:
+        - parameter_key: "AllocationThreshold"
+          parameter_value: 1.00
+        - parameter_key: "CentralAccountId"
+          parameter_value: 593793039129
+      #Apply to the following OU(s)
+      deployment_targets:
+        accounts: # array of strings, [0-9]{12}
+          - pyeole-smeiacdev
 
     - name: create-network-stack-test
       description: create vpc stack
