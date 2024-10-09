@@ -6,7 +6,7 @@ phases:
       python: 3.8 # Specify the runtime if needed (or omit if not necessary)
     commands:
       - echo Installing necessary packages...
-      - yum install -y zip # Install zip utility if not already available
+      - apt-get install -y zip # Install zip utility if not already available
 
   pre_build:
     commands:
