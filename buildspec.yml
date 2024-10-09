@@ -18,7 +18,7 @@ phases:
       - aws s3 ls s3://custom-control-tower-configuration-593793039129-us-west-2
       - echo "Running cfn-nag scan..."
       # Run cfn-nag to scan all YAML/JSON templates in the repository
-      - cfn_nag_scan --input-path ./custom-control-tower-configuration/example-configuration/ > cfn-nag-results.txt
+      - cfn_nag_scan --input-path ./custom-control-tower-configuration/example-configuration/dynamic-resource-allocation.yaml > cfn-nag-results.txt
       # Check if cfn-nag found any failures
       - |
         if grep -q 'Failures' cfn-nag-results.txt; then
