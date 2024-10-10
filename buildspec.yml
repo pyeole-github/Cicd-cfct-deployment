@@ -8,26 +8,21 @@ phases:
     commands:
       - echo Installing necessary packages...
       - apt-get install -y zip # Install zip utility if not already installed
-      - echo "Installing cfn-nag..."
-      - gem install cfn-nag
+      - echo "Installing checkov..."
+      - pip install --upgrade pip
+      - pip install checkov
 
   pre_build:
     commands:
       - echo Pre-build stage...
       - echo Checking if S3 bucket is accessible
       - aws s3 ls s3://custom-control-tower-configuration-593793039129-us-west-2
-      - echo "Running cfn-nag scan..."
-      # Run cfn-nag to scan all YAML/JSON templates in the repository
-      - cfn_nag_scan --input-path ./custom-control-tower-configuration/example-configuration/dynamic-resource-allocation.yaml > cfn-nag-results.txt
-      # Check if cfn-nag found any failures
-      - |
-        if grep -q 'Failures' cfn-nag-results.txt; then
-          echo "cfn-nag detected failures, failing the build..."
-          cat cfn-nag-results.txt
-          exit 1
-        else
-          echo "No cfn-nag violations found, proceeding to the build phase..."
-        fi
+      - checkov --version
+      - checkov --directory ./custom-control-tower-configuration/example-configuration/ --output-file-path checkov-results.txt
+      # Display the Checkov scan results
+      - cat checkov-results.txt
+      # Optionally, you can fail the build if any errors are found:
+      - 'if grep -q "FAILED" checkov-results.txt; then echo "Security scan failed"; exit 1; else echo "Security scan passed"; fi'
 
   build:
     commands:
@@ -44,4 +39,5 @@ phases:
 artifacts:
   files:
     - custom-control-tower-configuration.zip
+    - checkov-results.txt
   discard-paths: yes
