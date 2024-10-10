@@ -1,4 +1,4 @@
-Dynamic Resource Allocation Across Accounts Using Centralized Cost Monitoring
+**Dynamic Resource Allocation Across Accounts Using Centralized Cost Monitoring**
 
 
 Problem: For organizations using multiple AWS accounts, managing cloud budgets while dynamically provisioning resources can be challenging, especially when certain accounts might require cost rebalancing.
@@ -13,11 +13,12 @@ Solution: Build a system that dynamically adjusts resource provisioning based on
 * Based on predefined thresholds, if an account exceeds a certain cost limit, Cloudformation dynamically re-allocates certain workloads or resources (like EC2 instances) to a cheaper or under-utilized account within the same organization.
 
 
-Implementation Example:
+**Implementation Example**
+
 Use Cloudformation to deploy a Lambda function that checks the AWS Budget for each account and compares the current cost with a limit.
 Based on the current usage, use lambda function to scale down resources in the high-cost account and trigger cross-account deployment to a cheaper account using cross-account IAM roles.
 
-Prerequisites
+**Prerequisites**
 
 * Multiple AWS accounts configured in AWS Organizations. (Control tower)
 * S3 bucket for storing Cloudformation state across accounts.
@@ -25,13 +26,13 @@ Prerequisites
 * AWS Cost Explorer and Budgets enabled.
 
 
-Architecture Diagram:
+**Architecture Diagram:**
 
 
 
 <img width="989" alt="Screenshot 2024-10-09 at 6 06 13 PM" src="https://github.com/user-attachments/assets/7939e1bd-fad3-4b98-aa22-6cf688c99b4b">
 
-Target technology stack:
+**Target technology stack:**
 
 * AWS CloudFormation
 * AWS CodePipeline
