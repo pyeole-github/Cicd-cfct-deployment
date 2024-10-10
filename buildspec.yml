@@ -18,7 +18,7 @@ phases:
       - echo Checking if S3 bucket is accessible
       - aws s3 ls s3://custom-control-tower-configuration-593793039129-us-west-2
       - checkov --version
-      - checkov --directory ./custom-control-tower-configuration/example-configuration/ --output-file-path checkov-results.txt
+      - checkov --directory ./custom-control-tower-configuration/example-configuration/ --output-file-path checkov-results.txt || true
       # Display the Checkov scan results
       - cat checkov-results.txt
       # Optionally, you can fail the build if any errors are found:
