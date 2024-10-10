@@ -13,7 +13,7 @@ resources:
     #     - parameter_key: "AllocationThreshold"
     #       parameter_value: 1.00
     #     - parameter_key: "CentralAccountId"
-    #       parameter_value: 593793039129
+    #       parameter_value: ${AWS::AccountId}
     #   #Apply to the following OU(s)
     #   deployment_targets:
     #     accounts: # array of strings, [0-9]{12}
@@ -27,7 +27,7 @@ resources:
         - parameter_key: "AllocationThreshold"
           parameter_value: 1.00
         - parameter_key: "CentralAccountId"
-          parameter_value: 593793039129
+          parameter_value: ${AWS::AccountId}
       #Apply to the following OU(s)
       deployment_targets:
         accounts: # array of strings, [0-9]{12}
